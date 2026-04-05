@@ -25,16 +25,28 @@ if ($q === '') {
     exit;
 }
 
-// Append store town so results are biased to the right area
-$query = $q . ', ' . STORE_TOWN;
+// Build a ~20 mile viewbox around the store to bias results geographically.
+// We use bounded=0 (soft bias) so addresses just outside the box still show.
+// This is better than appending a town name, which breaks addresses in nearby
+// towns (e.g. searching for a Belper address when the store is in Belper but
+// STORE_TOWN was set to Derby).
+$pad = 0.3; // ~15 miles in each direction
+$viewbox = implode(',', [
+    STORE_LNG - $pad, // left  (west)
+    STORE_LAT + $pad, // top   (north)
+    STORE_LNG + $pad, // right (east)
+    STORE_LAT - $pad, // bottom (south)
+]);
 
 $url = 'https://nominatim.openstreetmap.org/search?'
     . http_build_query([
-        'q'              => $query,
+        'q'              => $q,
         'format'         => 'json',
         'limit'          => '5',
         'countrycodes'   => 'gb',
         'addressdetails' => '1',
+        'viewbox'        => $viewbox,
+        'bounded'        => '0',
     ]);
 
 $ch = curl_init();
