@@ -441,14 +441,102 @@ h2 { font-size: 1.2rem; margin-bottom: 0.75rem; margin-top: 1.5rem; }
     border-radius: 4px;
 }
 
-/* ---- Geocode status message ------------------------------ */
-.geocode-status {
-    font-size: 0.85rem;
-    color: #aaa;
-    margin-top: 0.5rem;
-    padding: 0.5rem 0.75rem;
+/* ---- Address search typeahead ---------------------------- */
+.address-search-wrap {
+    position: relative;
+}
+
+/* The dropdown list */
+.geocode-results {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #242424;
+    border: 1px solid #444;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    z-index: 200;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.geocode-result-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.geocode-result-item:last-child {
+    border-bottom: none;
+}
+
+.geocode-result-item:hover,
+.geocode-result-item:active {
     background: #2a2a2a;
+}
+
+.result-label {
+    font-size: 0.95rem;
+    color: #e0e0e0;
+    font-weight: 500;
+}
+
+.result-full {
+    font-size: 0.75rem;
+    color: #777;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-disabled {
+    color: #666;
+    font-size: 0.85rem;
+    cursor: default;
+    font-style: italic;
+}
+
+/* ---- Confirmed address strip ----------------------------- */
+.address-confirmed {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: #1a2a1a;
+    border: 1px solid #2d4a2d;
     border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.confirmed-address {
+    font-size: 0.9rem;
+    color: #7ec87e;
+    flex: 1;
+}
+
+.btn-clear-address {
+    background: none;
+    border: 1px solid #444;
+    color: #aaa;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-clear-address:hover {
+    border-color: #f5821f;
+    color: #f5821f;
 }
 
 /* ---- Misc ------------------------------------------------ */
