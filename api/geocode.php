@@ -2,8 +2,8 @@
 // ============================================================
 // api/geocode.php — Server-side proxy for Nominatim geocoding
 //
-// Accepts: ?address=42+Hartington+Street&postcode=DE1+3GU
-// Returns: JSON array of up to 5 results for the user to pick from
+// Accepts: ?q=42+Hartington+Street+Belper
+// Returns: JSON array of up to 5 results with structured address details
 // ============================================================
 
 require_once __DIR__ . '/../config.php';
@@ -16,84 +16,79 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$address  = trim($_GET['address'] ?? '');
-$postcode = trim($_GET['postcode'] ?? '');
+$q = trim($_GET['q'] ?? '');
 
-if ($address === '' && $postcode === '') {
+if ($q === '') {
     http_response_code(400);
-    echo json_encode(['error' => 'Please enter an address or postcode']);
+    echo json_encode(['error' => 'Missing search query']);
     exit;
 }
 
-// ----------------------------------------------------------
-// Helper: make a Nominatim request, return decoded array
-// ----------------------------------------------------------
-function nominatim_request(array $params): array {
-    $url = 'https://nominatim.openstreetmap.org/search?'
-        . http_build_query(array_merge($params, [
-            'format'       => 'json',
-            'limit'        => '5',
-            'countrycodes' => 'gb',
-        ]));
+// Append the store town so results are biased to the right area
+$query = $q . ', ' . STORE_TOWN;
 
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 10,
-        CURLOPT_HTTPHEADER     => ['User-Agent: ForgemillTracker/1.0 (forgemill.co.uk)'],
-        CURLOPT_SSL_VERIFYPEER => true,
+$url = 'https://nominatim.openstreetmap.org/search?'
+    . http_build_query([
+        'q'              => $query,
+        'format'         => 'json',
+        'limit'          => '6',
+        'countrycodes'   => 'gb',
+        'addressdetails' => '1',   // Returns structured address so we can extract postcode
     ]);
 
-    $response  = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err       = curl_error($ch);
-    curl_close($ch);
+$ch = curl_init();
+curl_setopt_array($ch, [
+    CURLOPT_URL            => $url,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT        => 10,
+    CURLOPT_HTTPHEADER     => ['User-Agent: ForgemillTracker/1.0 (forgemill.co.uk)'],
+    CURLOPT_SSL_VERIFYPEER => true,
+]);
 
-    if ($err || $http_code !== 200) return [];
-    $data = json_decode($response, true);
-    return is_array($data) ? $data : [];
+$response  = curl_exec($ch);
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$err       = curl_error($ch);
+curl_close($ch);
+
+if ($err || $http_code !== 200) {
+    http_response_code(502);
+    echo json_encode(['error' => 'Geocoding request failed']);
+    exit;
 }
 
-// ----------------------------------------------------------
-// Attempt 1: structured street + postcode
-// ----------------------------------------------------------
+$data = json_decode($response, true);
+
+if (empty($data)) {
+    echo json_encode(['results' => []]);
+    exit;
+}
+
+// Build a clean result for each match
 $results = [];
+foreach ($data as $r) {
+    $addr = $r['address'] ?? [];
 
-if ($address !== '' && $postcode !== '') {
-    $results = nominatim_request([
-        'street'     => $address,
-        'postalcode' => $postcode,
+    // Build a short street address from the structured parts
+    $parts = array_filter([
+        $addr['house_number'] ?? '',
+        $addr['road'] ?? $addr['pedestrian'] ?? $addr['footway'] ?? '',
     ]);
-}
+    $street = implode(' ', $parts);
 
-// ----------------------------------------------------------
-// Attempt 2: postcode only
-// ----------------------------------------------------------
-if (empty($results) && $postcode !== '') {
-    $results = nominatim_request(['postalcode' => $postcode]);
-}
+    // Postcode direct from address details
+    $postcode = strtoupper(trim($addr['postcode'] ?? ''));
 
-// ----------------------------------------------------------
-// Attempt 3: free-text fallback
-// ----------------------------------------------------------
-if (empty($results)) {
-    $results = nominatim_request(['q' => trim("$address $postcode")]);
-}
+    // Fallback label if we couldn't build a street string
+    $label = $street ?: $r['display_name'];
 
-if (empty($results)) {
-    echo json_encode(['error' => 'No results found — try adjusting the address or postcode']);
-    exit;
-}
-
-// Return all results so the user can pick the right one
-$output = array_map(function($r) {
-    return [
-        'lat'          => $r['lat'],
-        'lng'          => $r['lon'],
-        'display_name' => $r['display_name'],
+    $results[] = [
+        'label'    => $label,           // Short name shown in dropdown
+        'postcode' => $postcode,        // Auto-fills the postcode field
+        'lat'      => $r['lat'],
+        'lng'      => $r['lon'],
+        'full'     => $r['display_name'], // Full address shown below the label
     ];
-}, $results);
+}
 
-echo json_encode(['results' => $output]);
+echo json_encode(['results' => $results]);
 ?>

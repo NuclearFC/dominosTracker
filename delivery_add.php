@@ -24,7 +24,6 @@ $stmt->execute([$shift_id, $user_id]);
 $shift = $stmt->fetch();
 
 if (!$shift) {
-    // Either doesn't exist, doesn't belong to user, or is already closed
     header('Location: /tracker/dashboard.php');
     exit;
 }
@@ -39,11 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tip_amount = trim($_POST['tip_amount'] ?? '');
 
     if ($address === '') {
-        $error = 'Please enter an address.';
+        $error = 'Please search for and select an address.';
     } elseif ($postcode === '') {
         $error = 'Please enter a postcode.';
     } else {
-        // Get the next sequence number
         $stmt = $pdo->prepare('SELECT COALESCE(MAX(sequence), 0) + 1 FROM deliveries WHERE shift_id = ?');
         $stmt->execute([$shift_id]);
         $next_seq = (int)$stmt->fetchColumn();
@@ -95,38 +93,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <form method="post" action="/tracker/delivery_add.php" class="form-card" id="delivery-form">
         <input type="hidden" name="shift_id" value="<?= $shift_id ?>">
-        <!-- Hidden lat/lng — filled in by JS after geocoding -->
-        <input type="hidden" name="lat" id="lat" value="">
-        <input type="hidden" name="lng" id="lng" value="">
+        <input type="hidden" name="lat"      id="lat"  value="">
+        <input type="hidden" name="lng"      id="lng"  value="">
+        <!-- These get filled in by JS when user picks a result -->
+        <input type="hidden" name="address"  id="address"  value="<?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="postcode" id="postcode" value="<?= htmlspecialchars($_POST['postcode'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
-        <div class="form-group">
-            <label for="address">Street address</label>
-            <input type="text" id="address" name="address"
-                   value="<?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                   placeholder="e.g. 42 Hartington Street"
-                   autocomplete="off" required>
+        <!-- The visible search field — typeahead, not submitted -->
+        <div class="form-group address-search-wrap" id="search-wrap">
+            <label for="address-search">Search address</label>
+            <input type="text" id="address-search"
+                   placeholder="Start typing a street or postcode…"
+                   autocomplete="off" autocorrect="off" spellcheck="false"
+                   value="<?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <!-- Dropdown injected here by JS -->
         </div>
 
-        <div class="form-group">
-            <label for="postcode">Postcode</label>
-            <input type="text" id="postcode" name="postcode"
-                   value="<?= htmlspecialchars($_POST['postcode'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                   placeholder="e.g. DE1 3GU"
-                   autocomplete="off" required
-                   style="text-transform: uppercase">
+        <!-- Confirmation strip — shown after a result is selected -->
+        <div id="address-confirmed" class="address-confirmed" style="display:none">
+            <div class="confirmed-address" id="confirmed-text"></div>
+            <button type="button" class="btn-clear-address" id="clear-address">Change</button>
         </div>
 
-        <!-- Find on map button -->
-        <button type="button" class="btn btn-secondary btn-full" id="geocode-btn">
-            Find on map
-        </button>
+        <!-- Postcode — editable in case it needs correcting -->
+        <div class="form-group" id="postcode-wrap" style="display:none">
+            <label for="postcode-display">Postcode</label>
+            <input type="text" id="postcode-display"
+                   autocomplete="off" style="text-transform:uppercase"
+                   placeholder="e.g. DE1 3GU">
+        </div>
 
-        <div id="geocode-status" class="geocode-status" style="display:none"></div>
-
-        <!-- Preview map (shown after geocoding) -->
+        <!-- Preview map -->
         <div id="preview-map" style="display:none"></div>
 
-        <div class="form-group" style="margin-top: 1rem">
+        <div class="form-group" style="margin-top:1rem">
             <label for="tip_amount">Tip <span class="label-hint">(optional, in £)</span></label>
             <input type="number" id="tip_amount" name="tip_amount"
                    value="<?= htmlspecialchars($_POST['tip_amount'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
@@ -140,9 +140,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="/tracker/assets/app.js"></script>
 <script>
-var STORE = { lat: <?= STORE_LAT ?>, lng: <?= STORE_LNG ?> };
-var STORE_TOWN = <?= json_encode(STORE_TOWN) ?>;
-initDeliveryForm('geocode-btn', 'address', 'postcode', 'lat', 'lng', 'preview-map', 'geocode-status', STORE, STORE_TOWN);
+initDeliveryForm({
+    searchId:     'address-search',
+    addressId:    'address',
+    postcodeId:   'postcode',
+    latId:        'lat',
+    lngId:        'lng',
+    previewMapId: 'preview-map',
+    searchWrapId: 'search-wrap',
+    confirmedId:  'address-confirmed',
+    confirmedTextId: 'confirmed-text',
+    clearBtnId:   'clear-address',
+    postcodeWrapId: 'postcode-wrap',
+    postcodeDisplayId: 'postcode-display',
+    store: { lat: <?= STORE_LAT ?>, lng: <?= STORE_LNG ?> }
+});
 </script>
 
 </body>

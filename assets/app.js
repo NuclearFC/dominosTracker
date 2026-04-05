@@ -96,112 +96,196 @@ function initShiftMap(elementId, data) {
 }
 
 /* ----------------------------------------------------------
-   initDeliveryForm(...)
-   Wires up the "Find on map" button on delivery_add.php.
-   Calls the server-side geocode proxy and shows a preview map.
-   ---------------------------------------------------------- */
-function initDeliveryForm(geocodeBtnId, addressId, postcodeId, latId, lngId, previewMapId, statusId, store, storeTown) {
-    var btn        = document.getElementById(geocodeBtnId);
-    var addressEl  = document.getElementById(addressId);
-    var postcodeEl = document.getElementById(postcodeId);
-    var latEl      = document.getElementById(latId);
-    var lngEl      = document.getElementById(lngId);
-    var mapDiv     = document.getElementById(previewMapId);
-    var statusEl   = document.getElementById(statusId);
+   initDeliveryForm(opts)
+   Typeahead address finder for delivery_add.php.
 
-    if (!btn) return;
+   As the user types, results appear in a dropdown after a short
+   pause. Picking a result fills the address, postcode, lat/lng
+   and drops a pin on the preview map.
+   ---------------------------------------------------------- */
+function initDeliveryForm(opts) {
+    var searchEl         = document.getElementById(opts.searchId);
+    var addressEl        = document.getElementById(opts.addressId);
+    var postcodeEl       = document.getElementById(opts.postcodeId);
+    var latEl            = document.getElementById(opts.latId);
+    var lngEl            = document.getElementById(opts.lngId);
+    var mapDiv           = document.getElementById(opts.previewMapId);
+    var searchWrap       = document.getElementById(opts.searchWrapId);
+    var confirmedDiv     = document.getElementById(opts.confirmedId);
+    var confirmedText    = document.getElementById(opts.confirmedTextId);
+    var clearBtn         = document.getElementById(opts.clearBtnId);
+    var postcodeWrap     = document.getElementById(opts.postcodeWrapId);
+    var postcodeDisplay  = document.getElementById(opts.postcodeDisplayId);
+
+    if (!searchEl) return;
 
     var previewMap    = null;
     var previewMarker = null;
+    var debounceTimer = null;
+    var currentQuery  = '';
 
-    btn.addEventListener('click', function() {
-        var address  = addressEl.value.trim();
-        var postcode = postcodeEl.value.trim();
+    // ----------------------------------------------------------
+    // Listen for typing — search after 500ms pause
+    // ----------------------------------------------------------
+    searchEl.addEventListener('input', function() {
+        var q = searchEl.value.trim();
 
-        if (!address && !postcode) {
-            showStatus('Please enter a street address or postcode.', 'error');
-            return;
-        }
+        clearDropdown();
 
-        btn.textContent = 'Searching…';
-        btn.disabled = true;
-        showStatus('Looking up address…', 'info');
+        if (q.length < 3) return; // Don't search on very short strings
 
-        // Send address and postcode separately — much more reliable than
-        // mashing them into one string
-        var params = new URLSearchParams();
-        if (address)  params.set('address',  address);
-        if (postcode) params.set('postcode', postcode);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            if (q !== currentQuery) {
+                currentQuery = q;
+                doSearch(q);
+            }
+        }, 500);
+    });
 
-        fetch('/tracker/api/geocode.php?' + params.toString())
+    // Close dropdown if user taps elsewhere
+    document.addEventListener('click', function(e) {
+        if (!searchWrap.contains(e.target)) clearDropdown();
+    });
+
+    // Keep postcode hidden field in sync with the editable display field
+    if (postcodeDisplay) {
+        postcodeDisplay.addEventListener('input', function() {
+            postcodeEl.value = postcodeDisplay.value.toUpperCase();
+        });
+    }
+
+    // "Change" button — clears the selection and shows the search box again
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            addressEl.value  = '';
+            postcodeEl.value = '';
+            latEl.value      = '';
+            lngEl.value      = '';
+            searchEl.value   = '';
+            if (postcodeDisplay) postcodeDisplay.value = '';
+
+            confirmedDiv.style.display  = 'none';
+            postcodeWrap.style.display  = 'none';
+            searchWrap.style.display    = 'block';
+            mapDiv.style.display        = 'none';
+
+            searchEl.focus();
+        });
+    }
+
+    // ----------------------------------------------------------
+    // Fire a geocode request
+    // ----------------------------------------------------------
+    function doSearch(q) {
+        showDropdownItem('Searching…', null, true);
+
+        fetch('/tracker/api/geocode.php?q=' + encodeURIComponent(q))
             .then(function(res) { return res.json(); })
             .then(function(data) {
-                btn.textContent = 'Find on map';
-                btn.disabled = false;
+                clearDropdown();
 
-                if (data.error) {
-                    showStatus(data.error, 'error');
-                    clearResults();
+                if (data.error || !data.results || data.results.length === 0) {
+                    showDropdownItem('No results found', null, true);
                     return;
                 }
 
-                statusEl.style.display = 'none';
                 showResults(data.results);
             })
             .catch(function() {
-                btn.textContent = 'Find on map';
-                btn.disabled = false;
-                showStatus('Request failed. Check your connection.', 'error');
+                clearDropdown();
+                showDropdownItem('Request failed — check connection', null, true);
             });
-    });
+    }
 
     // ----------------------------------------------------------
-    // Show a list of results for the user to pick from
+    // Render the results dropdown
     // ----------------------------------------------------------
     function showResults(results) {
-        clearResults();
-
         var list = document.createElement('ul');
         list.className = 'geocode-results';
-        list.id = 'geocode-results';
+        list.id = 'geocode-dropdown';
 
         results.forEach(function(r) {
             var li = document.createElement('li');
             li.className = 'geocode-result-item';
-            li.textContent = r.display_name;
-            li.addEventListener('click', function() {
+
+            var labelEl = document.createElement('span');
+            labelEl.className = 'result-label';
+            labelEl.textContent = r.label;
+
+            var fullEl = document.createElement('span');
+            fullEl.className = 'result-full';
+            fullEl.textContent = r.full;
+
+            li.appendChild(labelEl);
+            li.appendChild(fullEl);
+
+            // Use mousedown so it fires before the input loses focus
+            li.addEventListener('mousedown', function(e) {
+                e.preventDefault();
                 selectResult(r);
             });
+            // Touch support
+            li.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                selectResult(r);
+            });
+
             list.appendChild(li);
         });
 
-        // Insert the list after the geocode button
-        btn.parentNode.insertBefore(list, btn.nextSibling);
+        searchWrap.appendChild(list);
     }
 
-    function clearResults() {
-        var existing = document.getElementById('geocode-results');
-        if (existing) existing.remove();
+    function showDropdownItem(text, cls, disabled) {
+        clearDropdown();
+        var list = document.createElement('ul');
+        list.className = 'geocode-results';
+        list.id = 'geocode-dropdown';
+        var li = document.createElement('li');
+        li.className = 'geocode-result-item' + (disabled ? ' result-disabled' : '');
+        li.textContent = text;
+        list.appendChild(li);
+        searchWrap.appendChild(list);
+    }
+
+    function clearDropdown() {
+        var el = document.getElementById('geocode-dropdown');
+        if (el) el.remove();
     }
 
     // ----------------------------------------------------------
-    // User picked a result — pin it on the map
+    // User picked a result
     // ----------------------------------------------------------
     function selectResult(r) {
         var lat = parseFloat(r.lat);
         var lng = parseFloat(r.lng);
 
-        latEl.value = lat;
-        lngEl.value = lng;
+        // Fill the hidden fields that get submitted
+        addressEl.value  = r.label;
+        postcodeEl.value = r.postcode;
+        latEl.value      = lat;
+        lngEl.value      = lng;
 
-        clearResults();
-        showStatus('Selected: ' + r.display_name, 'success');
+        clearDropdown();
+
+        // Show the confirmed address strip, hide the search box
+        confirmedText.textContent = r.label + (r.postcode ? '  ·  ' + r.postcode : '');
+        confirmedDiv.style.display = 'flex';
+        searchWrap.style.display   = 'none';
+
+        // Show editable postcode field (in case it's wrong)
+        if (r.postcode) {
+            postcodeDisplay.value          = r.postcode;
+            postcodeWrap.style.display     = 'block';
+        }
 
         // Show / update the preview map
         mapDiv.style.display = 'block';
 
         if (!previewMap) {
-            previewMap = L.map(previewMapId, {
+            previewMap = L.map(opts.previewMapId, {
                 center: [lat, lng],
                 zoom: 16,
                 zoomControl: true
@@ -218,24 +302,14 @@ function initDeliveryForm(geocodeBtnId, addressId, postcodeId, latId, lngId, pre
 
         var icon = L.divIcon({
             className: '',
-            html: '<div style="'
-                + 'width:22px;height:22px;border-radius:50%;'
+            html: '<div style="width:22px;height:22px;border-radius:50%;'
                 + 'background:#2980b9;border:3px solid #fff;'
-                + 'box-shadow:0 2px 6px rgba(0,0,0,0.5)'
-                + '"></div>',
+                + 'box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>',
             iconSize: [22, 22],
             iconAnchor: [11, 11]
         });
 
         previewMarker = L.marker([lat, lng], { icon: icon }).addTo(previewMap);
-    }
-
-    function showStatus(msg, type) {
-        statusEl.style.display = 'block';
-        statusEl.textContent = msg;
-        statusEl.style.color = type === 'error' ? '#e74c3c'
-                             : type === 'success' ? '#2ecc71'
-                             : '#aaa';
     }
 }
 
