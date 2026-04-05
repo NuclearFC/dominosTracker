@@ -140,51 +140,13 @@ function initDeliveryForm(geocodeBtnId, addressId, postcodeId, latId, lngId, pre
                 btn.disabled = false;
 
                 if (data.error) {
-                    showStatus('Not found: ' + data.error, 'error');
+                    showStatus(data.error, 'error');
+                    clearResults();
                     return;
                 }
 
-                var lat = parseFloat(data.lat);
-                var lng = parseFloat(data.lng);
-
-                // Store lat/lng in hidden fields
-                latEl.value = lat;
-                lngEl.value = lng;
-
-                showStatus('Found: ' + data.display_name, 'success');
-
-                // Show / update the preview map
-                mapDiv.style.display = 'block';
-
-                if (!previewMap) {
-                    previewMap = L.map(previewMapId, {
-                        center: [lat, lng],
-                        zoom: 15,
-                        zoomControl: true
-                    });
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors',
-                        maxZoom: 19
-                    }).addTo(previewMap);
-                } else {
-                    previewMap.setView([lat, lng], 15);
-                }
-
-                // Remove old marker if any
-                if (previewMarker) previewMap.removeLayer(previewMarker);
-
-                var icon = L.divIcon({
-                    className: '',
-                    html: '<div style="'
-                        + 'width:22px;height:22px;border-radius:50%;'
-                        + 'background:#2980b9;border:3px solid #fff;'
-                        + 'box-shadow:0 2px 6px rgba(0,0,0,0.5)'
-                        + '"></div>',
-                    iconSize: [22, 22],
-                    iconAnchor: [11, 11]
-                });
-
-                previewMarker = L.marker([lat, lng], { icon: icon }).addTo(previewMap);
+                statusEl.style.display = 'none';
+                showResults(data.results);
             })
             .catch(function() {
                 btn.textContent = 'Find on map';
@@ -192,6 +154,81 @@ function initDeliveryForm(geocodeBtnId, addressId, postcodeId, latId, lngId, pre
                 showStatus('Request failed. Check your connection.', 'error');
             });
     });
+
+    // ----------------------------------------------------------
+    // Show a list of results for the user to pick from
+    // ----------------------------------------------------------
+    function showResults(results) {
+        clearResults();
+
+        var list = document.createElement('ul');
+        list.className = 'geocode-results';
+        list.id = 'geocode-results';
+
+        results.forEach(function(r) {
+            var li = document.createElement('li');
+            li.className = 'geocode-result-item';
+            li.textContent = r.display_name;
+            li.addEventListener('click', function() {
+                selectResult(r);
+            });
+            list.appendChild(li);
+        });
+
+        // Insert the list after the geocode button
+        btn.parentNode.insertBefore(list, btn.nextSibling);
+    }
+
+    function clearResults() {
+        var existing = document.getElementById('geocode-results');
+        if (existing) existing.remove();
+    }
+
+    // ----------------------------------------------------------
+    // User picked a result — pin it on the map
+    // ----------------------------------------------------------
+    function selectResult(r) {
+        var lat = parseFloat(r.lat);
+        var lng = parseFloat(r.lng);
+
+        latEl.value = lat;
+        lngEl.value = lng;
+
+        clearResults();
+        showStatus('Selected: ' + r.display_name, 'success');
+
+        // Show / update the preview map
+        mapDiv.style.display = 'block';
+
+        if (!previewMap) {
+            previewMap = L.map(previewMapId, {
+                center: [lat, lng],
+                zoom: 16,
+                zoomControl: true
+            });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(previewMap);
+        } else {
+            previewMap.setView([lat, lng], 16);
+        }
+
+        if (previewMarker) previewMap.removeLayer(previewMarker);
+
+        var icon = L.divIcon({
+            className: '',
+            html: '<div style="'
+                + 'width:22px;height:22px;border-radius:50%;'
+                + 'background:#2980b9;border:3px solid #fff;'
+                + 'box-shadow:0 2px 6px rgba(0,0,0,0.5)'
+                + '"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        });
+
+        previewMarker = L.marker([lat, lng], { icon: icon }).addTo(previewMap);
+    }
 
     function showStatus(msg, type) {
         statusEl.style.display = 'block';

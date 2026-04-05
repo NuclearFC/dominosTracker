@@ -3,10 +3,7 @@
 // api/geocode.php — Server-side proxy for Nominatim geocoding
 //
 // Accepts: ?address=42+Hartington+Street&postcode=DE1+3GU
-//
-// Strategy:
-//   1. Try structured query (street + postcode) — most precise
-//   2. Fall back to postcode only — catches edge cases
+// Returns: JSON array of up to 5 results for the user to pick from
 // ============================================================
 
 require_once __DIR__ . '/../config.php';
@@ -29,16 +26,14 @@ if ($address === '' && $postcode === '') {
 }
 
 // ----------------------------------------------------------
-// Helper: make a single Nominatim request and return the
-// decoded JSON array (may be empty if nothing found).
+// Helper: make a Nominatim request, return decoded array
 // ----------------------------------------------------------
 function nominatim_request(array $params): array {
     $url = 'https://nominatim.openstreetmap.org/search?'
         . http_build_query(array_merge($params, [
             'format'       => 'json',
-            'limit'        => '1',
+            'limit'        => '5',
             'countrycodes' => 'gb',
-            'addressdetails' => '0',
         ]));
 
     $ch = curl_init();
@@ -46,9 +41,7 @@ function nominatim_request(array $params): array {
         CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 10,
-        CURLOPT_HTTPHEADER     => [
-            'User-Agent: ForgemillTracker/1.0 (forgemill.co.uk)',
-        ],
+        CURLOPT_HTTPHEADER     => ['User-Agent: ForgemillTracker/1.0 (forgemill.co.uk)'],
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
 
@@ -58,50 +51,49 @@ function nominatim_request(array $params): array {
     curl_close($ch);
 
     if ($err || $http_code !== 200) return [];
-
     $data = json_decode($response, true);
     return is_array($data) ? $data : [];
 }
 
 // ----------------------------------------------------------
-// Attempt 1: structured query — street + postcode
-// Nominatim handles these much better when separated out.
+// Attempt 1: structured street + postcode
 // ----------------------------------------------------------
-$result = [];
+$results = [];
 
 if ($address !== '' && $postcode !== '') {
-    $data = nominatim_request([
+    $results = nominatim_request([
         'street'     => $address,
         'postalcode' => $postcode,
     ]);
-    if (!empty($data)) $result = $data[0];
 }
 
 // ----------------------------------------------------------
-// Attempt 2: postcode only — reliable fallback for UK
+// Attempt 2: postcode only
 // ----------------------------------------------------------
-if (empty($result) && $postcode !== '') {
-    $data = nominatim_request(['postalcode' => $postcode]);
-    if (!empty($data)) $result = $data[0];
+if (empty($results) && $postcode !== '') {
+    $results = nominatim_request(['postalcode' => $postcode]);
 }
 
 // ----------------------------------------------------------
-// Attempt 3: free-text fallback using whatever we have
+// Attempt 3: free-text fallback
 // ----------------------------------------------------------
-if (empty($result)) {
-    $q = trim("$address $postcode");
-    $data = nominatim_request(['q' => $q]);
-    if (!empty($data)) $result = $data[0];
+if (empty($results)) {
+    $results = nominatim_request(['q' => trim("$address $postcode")]);
 }
 
-if (empty($result)) {
-    echo json_encode(['error' => 'Address not found — try adjusting the street name or postcode']);
+if (empty($results)) {
+    echo json_encode(['error' => 'No results found — try adjusting the address or postcode']);
     exit;
 }
 
-echo json_encode([
-    'lat'          => $result['lat'],
-    'lng'          => $result['lon'],
-    'display_name' => $result['display_name'],
-]);
+// Return all results so the user can pick the right one
+$output = array_map(function($r) {
+    return [
+        'lat'          => $r['lat'],
+        'lng'          => $r['lon'],
+        'display_name' => $r['display_name'],
+    ];
+}, $results);
+
+echo json_encode(['results' => $output]);
 ?>

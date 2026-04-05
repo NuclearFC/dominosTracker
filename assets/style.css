@@ -441,6 +441,35 @@ h2 { font-size: 1.2rem; margin-bottom: 0.75rem; margin-top: 1.5rem; }
     border-radius: 4px;
 }
 
+/* ---- Geocode results list -------------------------------- */
+.geocode-results {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.geocode-result-item {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    cursor: pointer;
+    border-bottom: 1px solid #2a2a2a;
+    line-height: 1.4;
+}
+
+.geocode-result-item:last-child {
+    border-bottom: none;
+}
+
+.geocode-result-item:hover,
+.geocode-result-item:active {
+    background: #2a2a2a;
+    color: #f5821f;
+}
+
 /* ---- Geocode status message ------------------------------ */
 .geocode-status {
     font-size: 0.85rem;
