@@ -118,21 +118,22 @@ function initDeliveryForm(geocodeBtnId, addressId, postcodeId, latId, lngId, pre
         var address  = addressEl.value.trim();
         var postcode = postcodeEl.value.trim();
 
-        if (!address) {
-            showStatus('Please enter a street address first.', 'error');
+        if (!address && !postcode) {
+            showStatus('Please enter a street address or postcode.', 'error');
             return;
         }
-
-        // Build query: "42 Hartington Street Derby DE1 3GU"
-        var q = address;
-        if (postcode) q += ' ' + postcode;
-        if (storeTown) q += ' ' + storeTown;
 
         btn.textContent = 'Searching…';
         btn.disabled = true;
         showStatus('Looking up address…', 'info');
 
-        fetch('/tracker/api/geocode.php?q=' + encodeURIComponent(q))
+        // Send address and postcode separately — much more reliable than
+        // mashing them into one string
+        var params = new URLSearchParams();
+        if (address)  params.set('address',  address);
+        if (postcode) params.set('postcode', postcode);
+
+        fetch('/tracker/api/geocode.php?' + params.toString())
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 btn.textContent = 'Find on map';
