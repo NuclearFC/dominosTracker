@@ -47,6 +47,7 @@ $url = 'https://nominatim.openstreetmap.org/search?'
         'addressdetails' => '1',
         'viewbox'        => $viewbox,
         'bounded'        => '0',
+        'dedupe'         => '0',
     ]);
 
 $ch = curl_init();
