@@ -18,7 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$q = trim($_GET['q'] ?? '');
+// Replace commas with spaces — Nominatim treats commas as field separators
+// which breaks queries like "107 Belper Road, Bargate" where the locality
+// isn't in its database. Treating the whole thing as a single freeform string works better.
+$q = trim(str_replace(',', ' ', $_GET['q'] ?? ''));
+$q = preg_replace('/\s+/', ' ', $q); // collapse any double spaces
 if ($q === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Missing search query']);
