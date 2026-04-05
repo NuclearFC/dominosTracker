@@ -20,9 +20,9 @@ define('STORE_LAT', 53.023493);
 define('STORE_LNG', -1.480351);
 define('STORE_NAME', "Domino's Belper");
 
-// Town name used to help geocode delivery addresses.
-// Should match the town your store delivers to.
-define('STORE_TOWN', 'Derby');
+// OS Places API key — get a free one at https://osdatahub.os.uk/
+// Free tier: 250,000 lookups/month (more than enough for a delivery tracker)
+define('OSPLACES_API_KEY', '');
 
 define('SITE_NAME', 'ForgemillTracker');
 ?>

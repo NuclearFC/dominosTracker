@@ -1,18 +1,13 @@
 <?php
 // ============================================================
-// api/geocode.php — Server-side proxy for Nominatim geocoding
+// api/geocode.php — UK address search proxy
 //
-// Strategy:
-//   1. Search with the full query as typed.
-//   2. If the query starts with a house number, also run a
-//      secondary search without it (street-only). This handles
-//      addresses where OSM has the road but not the individual
-//      house number mapped.
-//   3. Merge both result sets, deduplicate by place_id, then
-//      sort by distance from the store so nearby results always
-//      rank above distant ones with the same street name.
-//   4. Re-attach the queried house number to road-level results
-//      so the display still reads "107 Belper Road".
+// Primary:  OS Places API (Ordnance Survey) — authoritative UK
+//           address database, every house, exact coordinates.
+//           Requires a free API key in config.php.
+//
+// Fallback: Nominatim (OpenStreetMap) — used if no OS key is
+//           configured. Less complete for UK house numbers.
 // ============================================================
 
 require_once __DIR__ . '/../config.php';
@@ -25,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-// Sanitise — strip commas (Nominatim treats them as field separators)
 $q = trim(preg_replace('/\s+/', ' ', str_replace(',', ' ', $_GET['q'] ?? '')));
 if ($q === '') {
     http_response_code(400);
@@ -33,15 +27,81 @@ if ($q === '') {
     exit;
 }
 
-// Extract leading house number if present, e.g. "107 Belper Road" → "107" + "Belper Road"
-$house_number = '';
-$street_only  = '';
-if (preg_match('/^(\d+[a-z]?)\s+(.+)/i', $q, $m)) {
-    $house_number = $m[1];
-    $street_only  = trim($m[2]);
+// ============================================================
+// OS Places API
+// ============================================================
+if (defined('OSPLACES_API_KEY') && OSPLACES_API_KEY !== '') {
+
+    $url = 'https://api.os.uk/search/places/v1/find?' . http_build_query([
+        'query'      => $q,
+        'key'        => OSPLACES_API_KEY,
+        'maxresults' => 6,
+        'dataset'    => 'DPA',   // Delivery Point Address — most accurate for houses
+        'srs'        => 'WGS84', // Return lat/lng directly
+    ]);
+
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL            => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 8,
+        CURLOPT_HTTPHEADER     => ['User-Agent: ForgemillTracker/1.0 (forgemill.co.uk)'],
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $resp     = curl_exec($ch);
+    $http_code= curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_err = curl_error($ch);
+    curl_close($ch);
+
+    if (!$curl_err && $http_code === 200) {
+        $data = json_decode($resp, true);
+        $hits = $data['results'] ?? [];
+
+        if (!empty($hits)) {
+            $results = array_map(function($hit) {
+                $dpa = $hit['DPA'];
+
+                // Build a readable street line
+                $parts = array_filter([
+                    $dpa['SUB_BUILDING_NAME']  ?? '',
+                    $dpa['BUILDING_NAME']       ?? '',
+                    $dpa['BUILDING_NUMBER']     ?? '',
+                    $dpa['THOROUGHFARE_NAME']   ?? $dpa['DEPENDENT_THOROUGHFARE_NAME'] ?? '',
+                ]);
+                $street = implode(' ', $parts) ?: ($dpa['ADDRESS'] ?? '');
+
+                // Locality line
+                $loc_parts = array_filter([
+                    $dpa['DEPENDENT_LOCALITY'] ?? '',
+                    $dpa['POST_TOWN']          ?? '',
+                    $dpa['POSTCODE']           ?? '',
+                ]);
+
+                return [
+                    'lat'          => (float)($dpa['LAT'] ?? 0),
+                    'lng'          => (float)($dpa['LNG'] ?? 0),
+                    'display_name' => $dpa['ADDRESS'] ?? '',
+                    'address'      => [
+                        'house_number' => $dpa['BUILDING_NUMBER'] ?? '',
+                        'road'         => $dpa['THOROUGHFARE_NAME'] ?? '',
+                        'suburb'       => $dpa['DEPENDENT_LOCALITY'] ?? '',
+                        'city'         => $dpa['POST_TOWN'] ?? '',
+                        'postcode'     => $dpa['POSTCODE'] ?? '',
+                    ],
+                    'house_number' => '',
+                ];
+            }, $hits);
+
+            echo json_encode(array_values($results));
+            exit;
+        }
+    }
+    // Fall through to Nominatim if OS Places returned nothing or errored
 }
 
-// ---- Nominatim request helper --------------------------------
+// ============================================================
+// Nominatim fallback
+// ============================================================
 function nominatim_search($query) {
     $pad     = 0.3;
     $viewbox = implode(',', [
@@ -78,43 +138,50 @@ function nominatim_search($query) {
     return json_decode($resp, true) ?: [];
 }
 
-// ---- Run searches --------------------------------------------
-$primary   = nominatim_search($q);
-$secondary = $house_number ? nominatim_search($street_only) : [];
+// Extract house number for fallback search
+$house_number = '';
+$street_only  = '';
+if (preg_match('/^(\d+[a-z]?)\s+(.+)/i', $q, $m)) {
+    $house_number = $m[1];
+    $street_only  = trim($m[2]);
+}
 
-// Merge and deduplicate by place_id
+$all = nominatim_search($q);
+if ($house_number) {
+    $all = array_merge($all, nominatim_search($street_only));
+}
+
+// Deduplicate by place_id
 $seen = [];
-$all  = [];
-foreach (array_merge($primary, $secondary) as $item) {
+$deduped = [];
+foreach ($all as $item) {
     $id = $item['place_id'] ?? null;
     if ($id && isset($seen[$id])) continue;
     if ($id) $seen[$id] = true;
-    $all[] = $item;
+    $deduped[] = $item;
 }
 
-if (empty($all)) {
+if (empty($deduped)) {
     echo json_encode([]);
     exit;
 }
 
-// ---- Sort by distance from store -----------------------------
-usort($all, function($a, $b) {
+// Sort by distance from store
+usort($deduped, function($a, $b) {
     $da = ($a['lat'] - STORE_LAT) ** 2 + ($a['lon'] - STORE_LNG) ** 2;
     $db = ($b['lat'] - STORE_LAT) ** 2 + ($b['lon'] - STORE_LNG) ** 2;
     return $da <=> $db;
 });
 
-// ---- Build response ------------------------------------------
 $results = array_map(function($item) use ($house_number) {
     return [
         'lat'          => $item['lat'],
         'lng'          => $item['lon'],
         'display_name' => $item['display_name'],
         'address'      => $item['address'] ?? [],
-        // Passed back so JS can prepend it onto road-level results
         'house_number' => $house_number,
     ];
-}, array_slice($all, 0, 5));
+}, array_slice($deduped, 0, 5));
 
 echo json_encode($results);
 ?>
