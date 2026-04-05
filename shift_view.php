@@ -51,7 +51,7 @@ $is_open         = ($shift['end_time'] === null);
     <title>Shift <?= htmlspecialchars(date('d M Y', strtotime($shift['date'])), ENT_QUOTES, 'UTF-8') ?> — <?= SITE_NAME ?></title>
     <link rel="stylesheet" href="/tracker/assets/style.css">
     <!-- Leaflet CSS from CDN -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="">
 </head>
 <body>
 
@@ -173,7 +173,7 @@ $is_open         = ($shift['end_time'] === null);
 </main>
 
 <!-- Leaflet JS from CDN -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin=""></script>
 <script src="/tracker/assets/app.js"></script>
 <script>
 // Pass PHP data to JavaScript
