@@ -84,7 +84,7 @@ $top_postcode = $top_postcode_row ? $top_postcode_row['postcode'] : '—';
 
 // Average miles per shift (calculate across all shifts)
 $stmt = $pdo->prepare(
-    'SELECT s.id FROM shifts WHERE user_id = ?'
+    'SELECT id FROM shifts WHERE user_id = ?'
 );
 $stmt->execute([$user_id]);
 $all_shift_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
