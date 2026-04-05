@@ -1,0 +1,26 @@
+# ============================================================
+# .htaccess — Security rules for the tracker app
+# ============================================================
+
+# Block direct browser access to PHP config and include files
+<FilesMatch "^(config\.php|db\.php|auth\.php|helpers\.php)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block access to the includes/ directory entirely
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to includes/
+    RewriteRule ^includes/ - [F,L]
+</IfModule>
+
+# Disable directory listings (don't show file list if no index.php)
+Options -Indexes
+
+# Force HTTPS if available (uncomment if your host supports it)
+# <IfModule mod_rewrite.c>
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>

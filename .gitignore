@@ -1,0 +1,20 @@
+# Never commit credentials
+tracker/config.php
+config.php
+
+# Setup/utility files with no place in the repo
+hash.php
+tracker/hash.php
+setup.sql
+test.php
+tracker/test.php
+
+# The upload-ready copy — always regenerated from source
+tracker/
+
+# Upload artifacts
+tracker.zip
+
+# Windows junk
+Thumbs.db
+desktop.ini

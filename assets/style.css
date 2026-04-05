@@ -1,0 +1,478 @@
+/* ============================================================
+   style.css — Dark theme, mobile-first
+   ============================================================ */
+
+/* ---- Reset & base ---------------------------------------- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+a {
+    color: #f5821f; /* Domino's orange-ish */
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+h2 { font-size: 1.2rem; margin-bottom: 0.75rem; margin-top: 1.5rem; }
+
+/* ---- Layout ---------------------------------------------- */
+.container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* ---- Header ---------------------------------------------- */
+.site-header {
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.site-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #f5821f;
+}
+
+.back-link {
+    font-size: 0.9rem;
+    color: #aaa;
+}
+
+.back-link:hover {
+    color: #e0e0e0;
+    text-decoration: none;
+}
+
+/* ---- Buttons --------------------------------------------- */
+.btn {
+    display: inline-block;
+    padding: 0.65rem 1.2rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.btn:hover {
+    opacity: 0.85;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #f5821f;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+}
+
+.btn-danger {
+    background: #c0392b;
+    color: #fff;
+}
+
+.btn-full {
+    display: block;
+    width: 100%;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+/* ---- Forms ----------------------------------------------- */
+.form-card {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.form-card-inline {
+    margin-top: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+    color: #bbb;
+    font-weight: 500;
+}
+
+.label-hint {
+    font-weight: 400;
+    color: #777;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 1rem;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #f5821f;
+}
+
+.form-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.form-row .btn {
+    flex: 1;
+}
+
+/* ---- Alerts ---------------------------------------------- */
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.alert-error {
+    background: rgba(192, 57, 43, 0.2);
+    border: 1px solid #c0392b;
+    color: #e74c3c;
+}
+
+.alert-info {
+    background: rgba(52, 152, 219, 0.15);
+    border: 1px solid #2980b9;
+    color: #a9cce3;
+}
+
+/* ---- Badges ---------------------------------------------- */
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-open {
+    background: rgba(39, 174, 96, 0.2);
+    color: #2ecc71;
+    border: 1px solid #27ae60;
+}
+
+/* ---- Login page ------------------------------------------ */
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.login-card {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 380px;
+}
+
+.login-card h1 {
+    color: #f5821f;
+    text-align: center;
+    margin-bottom: 0.25rem;
+}
+
+.login-subtitle {
+    text-align: center;
+    color: #777;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ---- Dashboard action row -------------------------------- */
+.action-row {
+    margin-bottom: 1rem;
+}
+
+/* ---- Stats grid ------------------------------------------ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-grid-sm {
+    grid-template-columns: repeat(2, 1fr);
+    margin-top: 1rem;
+}
+
+@media (min-width: 480px) {
+    .stats-grid-sm {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.stat-card {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #f5821f;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.2rem;
+}
+
+/* ---- Shift list (dashboard) ------------------------------ */
+.shift-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.shift-card {
+    display: block;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s;
+}
+
+.shift-card:hover {
+    border-color: #f5821f;
+    text-decoration: none;
+}
+
+.shift-date {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #e0e0e0;
+}
+
+.shift-meta {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-top: 0.15rem;
+}
+
+.shift-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: #888;
+}
+
+/* ---- Shift header (shift_view) --------------------------- */
+.shift-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.shift-times {
+    color: #aaa;
+    font-size: 0.95rem;
+    margin-top: 0.2rem;
+}
+
+.shift-notes {
+    color: #888;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-top: 0.3rem;
+}
+
+.shift-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 140px;
+}
+
+/* ---- Shift map ------------------------------------------- */
+#shift-map {
+    width: 100%;
+    height: 55vw;       /* Proportional on mobile */
+    min-height: 260px;
+    max-height: 480px;
+    background: #1a1a1a;
+    margin: 1rem 0;
+}
+
+/* ---- Preview map (delivery_add) -------------------------- */
+#preview-map {
+    width: 100%;
+    height: 220px;
+    border-radius: 8px;
+    margin-top: 0.75rem;
+    background: #1a1a1a;
+}
+
+/* ---- Delivery list --------------------------------------- */
+.delivery-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.delivery-item {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.delivery-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.delivery-info strong {
+    font-size: 0.95rem;
+    color: #e0e0e0;
+}
+
+.postcode {
+    font-size: 0.8rem;
+    color: #888;
+    background: #2a2a2a;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+}
+
+.tip-badge {
+    font-size: 0.8rem;
+    color: #2ecc71;
+    background: rgba(39, 174, 96, 0.15);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+}
+
+/* ---- Geocode status message ------------------------------ */
+.geocode-status {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: #2a2a2a;
+    border-radius: 6px;
+}
+
+/* ---- Misc ------------------------------------------------ */
+.muted {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* ---- Leaflet dark overrides ------------------------------ */
+.leaflet-tile {
+    filter: brightness(0.8) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.leaflet-container {
+    background: #1a1a1a;
+}
+
+.leaflet-popup-content-wrapper {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #3a3a3a;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+
+.leaflet-popup-tip {
+    background: #1e1e1e;
+}
