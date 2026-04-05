@@ -1,0 +1,11 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/fd10forg/public_html/tracker/
+    - /bin/cp -R api $DEPLOYPATH
+    - /bin/cp -R assets $DEPLOYPATH
+    - /bin/cp -R includes $DEPLOYPATH
+    - /bin/cp .htaccess $DEPLOYPATH
+    - /bin/cp dashboard.php delivery_add.php delivery_delete.php $DEPLOYPATH
+    - /bin/cp index.php login.php logout.php $DEPLOYPATH
+    - /bin/cp shift_close.php shift_new.php shift_view.php $DEPLOYPATH
