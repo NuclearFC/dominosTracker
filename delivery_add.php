@@ -16,7 +16,6 @@ if ($shift_id <= 0) {
     exit;
 }
 
-// Verify shift belongs to this user and is still open
 $stmt = $pdo->prepare(
     'SELECT id, date FROM shifts WHERE id = ? AND user_id = ? AND end_time IS NULL LIMIT 1'
 );
@@ -40,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($address === '') {
         $error = 'Please search for and select an address.';
     } elseif ($postcode === '') {
-        $error = 'Please enter a postcode.';
+        $error = 'Postcode missing — please select an address from the dropdown.';
     } else {
         $stmt = $pdo->prepare('SELECT COALESCE(MAX(sequence), 0) + 1 FROM deliveries WHERE shift_id = ?');
         $stmt->execute([$shift_id]);
@@ -92,35 +91,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" action="/tracker/delivery_add.php" class="form-card" id="delivery-form">
-        <input type="hidden" name="shift_id" value="<?= $shift_id ?>">
-        <input type="hidden" name="lat"      id="lat"  value="">
-        <input type="hidden" name="lng"      id="lng"  value="">
-        <!-- These get filled in by JS when user picks a result -->
-        <input type="hidden" name="address"  id="address"  value="<?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="postcode" id="postcode" value="<?= htmlspecialchars($_POST['postcode'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="shift_id"  value="<?= $shift_id ?>">
+        <input type="hidden" name="lat"       id="lat"      value="">
+        <input type="hidden" name="lng"       id="lng"      value="">
+        <input type="hidden" name="address"   id="address"  value="">
+        <input type="hidden" name="postcode"  id="postcode" value="">
 
-        <!-- The visible search field — typeahead, not submitted -->
+        <!-- Visible search field -->
         <div class="form-group address-search-wrap" id="search-wrap">
             <label for="address-search">Search address</label>
             <input type="text" id="address-search"
-                   placeholder="Start typing a street or postcode…"
-                   autocomplete="off" autocorrect="off" spellcheck="false"
-                   value="<?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <!-- Dropdown injected here by JS -->
+                   placeholder="e.g. 107 Belper Road"
+                   autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
 
-        <!-- Confirmation strip — shown after a result is selected -->
+        <!-- Shown after a result is picked -->
         <div id="address-confirmed" class="address-confirmed" style="display:none">
             <div class="confirmed-address" id="confirmed-text"></div>
             <button type="button" class="btn-clear-address" id="clear-address">Change</button>
-        </div>
-
-        <!-- Postcode — editable in case it needs correcting -->
-        <div class="form-group" id="postcode-wrap" style="display:none">
-            <label for="postcode-display">Postcode</label>
-            <input type="text" id="postcode-display"
-                   autocomplete="off" style="text-transform:uppercase"
-                   placeholder="e.g. DE1 3GU">
         </div>
 
         <!-- Preview map -->
@@ -141,19 +129,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="/tracker/assets/app.js"></script>
 <script>
 initDeliveryForm({
-    searchId:          'address-search',
-    addressId:         'address',
-    postcodeId:        'postcode',
-    latId:             'lat',
-    lngId:             'lng',
-    previewMapId:      'preview-map',
-    searchWrapId:      'search-wrap',
-    confirmedId:       'address-confirmed',
-    confirmedTextId:   'confirmed-text',
-    clearBtnId:        'clear-address',
-    postcodeWrapId:    'postcode-wrap',
-    postcodeDisplayId: 'postcode-display',
-    store: { lat: <?= STORE_LAT ?>, lng: <?= STORE_LNG ?> }
+    searchId:        'address-search',
+    addressId:       'address',
+    postcodeId:      'postcode',
+    latId:           'lat',
+    lngId:           'lng',
+    previewMapId:    'preview-map',
+    searchWrapId:    'search-wrap',
+    confirmedId:     'address-confirmed',
+    confirmedTextId: 'confirmed-text',
+    clearBtnId:      'clear-address'
 });
 </script>
 

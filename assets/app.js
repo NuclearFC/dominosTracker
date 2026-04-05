@@ -97,25 +97,25 @@ function initShiftMap(elementId, data) {
 
 /* ----------------------------------------------------------
    initDeliveryForm(opts)
-   Typeahead address finder for delivery_add.php.
+   Typeahead address search on delivery_add.php.
 
-   As the user types, results appear in a dropdown after a short
-   pause. Picking a result fills the address, postcode, lat/lng
-   and drops a pin on the preview map.
+   Searches via the server-side geocode proxy. The proxy runs a
+   fallback search without the house number if needed, and sorts
+   results by distance from the store — so "107 Belper Road" finds
+   the Belper one even if OSM only has the road mapped (not the
+   individual house).
    ---------------------------------------------------------- */
 function initDeliveryForm(opts) {
-    var searchEl         = document.getElementById(opts.searchId);
-    var addressEl        = document.getElementById(opts.addressId);
-    var postcodeEl       = document.getElementById(opts.postcodeId);
-    var latEl            = document.getElementById(opts.latId);
-    var lngEl            = document.getElementById(opts.lngId);
-    var mapDiv           = document.getElementById(opts.previewMapId);
-    var searchWrap       = document.getElementById(opts.searchWrapId);
-    var confirmedDiv     = document.getElementById(opts.confirmedId);
-    var confirmedText    = document.getElementById(opts.confirmedTextId);
-    var clearBtn         = document.getElementById(opts.clearBtnId);
-    var postcodeWrap     = document.getElementById(opts.postcodeWrapId);
-    var postcodeDisplay  = document.getElementById(opts.postcodeDisplayId);
+    var searchEl     = document.getElementById(opts.searchId);
+    var addressEl    = document.getElementById(opts.addressId);
+    var postcodeEl   = document.getElementById(opts.postcodeId);
+    var latEl        = document.getElementById(opts.latId);
+    var lngEl        = document.getElementById(opts.lngId);
+    var mapDiv       = document.getElementById(opts.previewMapId);
+    var searchWrap   = document.getElementById(opts.searchWrapId);
+    var confirmedDiv = document.getElementById(opts.confirmedId);
+    var confirmedText= document.getElementById(opts.confirmedTextId);
+    var clearBtn     = document.getElementById(opts.clearBtnId);
 
     if (!searchEl) return;
 
@@ -124,15 +124,10 @@ function initDeliveryForm(opts) {
     var debounceTimer = null;
     var currentQuery  = '';
 
-    // ----------------------------------------------------------
-    // Listen for typing — search after 500ms pause
-    // ----------------------------------------------------------
     searchEl.addEventListener('input', function() {
         var q = searchEl.value.trim();
-
         clearDropdown();
-
-        if (q.length < 3) return; // Don't search on very short strings
+        if (q.length < 3) return;
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
@@ -143,19 +138,10 @@ function initDeliveryForm(opts) {
         }, 500);
     });
 
-    // Close dropdown if user taps elsewhere
     document.addEventListener('click', function(e) {
         if (!searchWrap.contains(e.target)) clearDropdown();
     });
 
-    // Keep postcode hidden field in sync with the editable display field
-    if (postcodeDisplay) {
-        postcodeDisplay.addEventListener('input', function() {
-            postcodeEl.value = postcodeDisplay.value.toUpperCase();
-        });
-    }
-
-    // "Change" button — clears the selection and shows the search box again
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
             addressEl.value  = '';
@@ -163,92 +149,70 @@ function initDeliveryForm(opts) {
             latEl.value      = '';
             lngEl.value      = '';
             searchEl.value   = '';
-            if (postcodeDisplay) postcodeDisplay.value = '';
+            currentQuery     = '';
 
-            confirmedDiv.style.display  = 'none';
-            postcodeWrap.style.display  = 'none';
-            searchWrap.style.display    = 'block';
-            mapDiv.style.display        = 'none';
+            confirmedDiv.style.display = 'none';
+            searchWrap.style.display   = 'block';
+            mapDiv.style.display       = 'none';
 
             searchEl.focus();
         });
     }
 
-    // ----------------------------------------------------------
-    // Fire a geocode request
-    // ----------------------------------------------------------
     function doSearch(q) {
-        showDropdownItem('Searching…', null, true);
+        showMessage('Searching…');
 
         fetch('/tracker/api/geocode.php?q=' + encodeURIComponent(q))
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 clearDropdown();
-
                 if (!Array.isArray(data) || data.length === 0) {
-                    showDropdownItem('No results found', null, true);
+                    showMessage('No results found');
                     return;
                 }
-
-                // Map API results to {label, full, postcode, lat, lng}
-                var results = data.map(function(item) {
-                    var addr     = item.address || {};
-                    var street   = [addr.house_number, addr.road].filter(Boolean).join(' ')
-                                   || item.display_name.split(',')[0].trim();
-                    var locality = [
-                        addr.suburb || addr.quarter || addr.neighbourhood || '',
-                        addr.city   || addr.town    || addr.village        || '',
-                        addr.postcode || ''
-                    ].filter(Boolean).join(', ');
-                    return {
-                        label:    street,
-                        full:     locality || item.display_name.split(',').slice(1, 3).join(',').trim(),
-                        postcode: (addr.postcode || '').toUpperCase(),
-                        lat:      item.lat,
-                        lng:      item.lng
-                    };
-                });
-
-                showResults(results);
+                renderResults(data);
             })
             .catch(function() {
                 clearDropdown();
-                showDropdownItem('Request failed — check connection', null, true);
+                showMessage('Request failed — check connection');
             });
     }
 
-    // ----------------------------------------------------------
-    // Render the results dropdown
-    // ----------------------------------------------------------
-    function showResults(results) {
+    function renderResults(results) {
         var list = document.createElement('ul');
         list.className = 'geocode-results';
         list.id = 'geocode-dropdown';
 
-        results.forEach(function(r) {
+        results.forEach(function(item) {
+            var addr = item.address || {};
+
+            // Use the house number from the query if OSM didn't return one
+            var houseNum = addr.house_number || item.house_number || '';
+            var road     = addr.road || addr.pedestrian || addr.footway || '';
+            var street   = [houseNum, road].filter(Boolean).join(' ')
+                           || item.display_name.split(',')[0].trim();
+
+            var locality = [
+                addr.suburb || addr.quarter || addr.neighbourhood || '',
+                addr.city   || addr.town    || addr.village        || '',
+                addr.postcode || ''
+            ].filter(Boolean).join(', ')
+             || item.display_name.split(',').slice(1, 3).join(',').trim();
+
+            var postcode = (addr.postcode || '').toUpperCase();
+
             var li = document.createElement('li');
             li.className = 'geocode-result-item';
+            li.innerHTML = '<span class="result-label">' + escHtml(street) + '</span>'
+                         + '<span class="result-full">'  + escHtml(locality) + '</span>';
 
-            var labelEl = document.createElement('span');
-            labelEl.className = 'result-label';
-            labelEl.textContent = r.label;
-
-            var fullEl = document.createElement('span');
-            fullEl.className = 'result-full';
-            fullEl.textContent = r.full;
-
-            li.appendChild(labelEl);
-            li.appendChild(fullEl);
-
-            // Use mousedown so it fires before the input loses focus
-            li.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                selectResult(r);
+            li.addEventListener('mousedown', function(e) { e.preventDefault(); });
+            li.addEventListener('click', function() {
+                selectResult(street, postcode, parseFloat(item.lat), parseFloat(item.lng));
             });
-            // Touch support
             li.addEventListener('touchend', function(e) {
                 e.preventDefault();
-                selectResult(r);
+                selectResult(street, postcode, parseFloat(item.lat), parseFloat(item.lng));
             });
 
             list.appendChild(li);
@@ -257,58 +221,21 @@ function initDeliveryForm(opts) {
         searchWrap.appendChild(list);
     }
 
-    function showDropdownItem(text, cls, disabled) {
-        clearDropdown();
-        var list = document.createElement('ul');
-        list.className = 'geocode-results';
-        list.id = 'geocode-dropdown';
-        var li = document.createElement('li');
-        li.className = 'geocode-result-item' + (disabled ? ' result-disabled' : '');
-        li.textContent = text;
-        list.appendChild(li);
-        searchWrap.appendChild(list);
-    }
-
-    function clearDropdown() {
-        var el = document.getElementById('geocode-dropdown');
-        if (el) el.remove();
-    }
-
-    // ----------------------------------------------------------
-    // User picked a result
-    // ----------------------------------------------------------
-    function selectResult(r) {
-        var lat = parseFloat(r.lat);
-        var lng = parseFloat(r.lng);
-
-        // Fill the hidden fields that get submitted
-        addressEl.value  = r.label;
-        postcodeEl.value = r.postcode;
+    function selectResult(street, postcode, lat, lng) {
+        addressEl.value  = street;
+        postcodeEl.value = postcode;
         latEl.value      = lat;
         lngEl.value      = lng;
 
         clearDropdown();
 
-        // Show the confirmed address strip, hide the search box
-        confirmedText.textContent = r.label + (r.postcode ? '  ·  ' + r.postcode : '');
+        confirmedText.textContent = street + (postcode ? '  ·  ' + postcode : '');
         confirmedDiv.style.display = 'flex';
         searchWrap.style.display   = 'none';
 
-        // Show editable postcode field (in case it's wrong)
-        if (r.postcode) {
-            postcodeDisplay.value      = r.postcode;
-            postcodeWrap.style.display = 'block';
-        }
-
-        // Show / update the preview map
         mapDiv.style.display = 'block';
-
         if (!previewMap) {
-            previewMap = L.map(opts.previewMapId, {
-                center: [lat, lng],
-                zoom: 16,
-                zoomControl: true
-            });
+            previewMap = L.map(opts.previewMapId, { center: [lat, lng], zoom: 16 });
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
@@ -318,17 +245,31 @@ function initDeliveryForm(opts) {
         }
 
         if (previewMarker) previewMap.removeLayer(previewMarker);
+        previewMarker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="width:22px;height:22px;border-radius:50%;background:#2980b9;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            })
+        }).addTo(previewMap);
+    }
 
-        var icon = L.divIcon({
-            className: '',
-            html: '<div style="width:22px;height:22px;border-radius:50%;'
-                + 'background:#2980b9;border:3px solid #fff;'
-                + 'box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>',
-            iconSize: [22, 22],
-            iconAnchor: [11, 11]
-        });
+    function showMessage(msg) {
+        clearDropdown();
+        var list = document.createElement('ul');
+        list.className = 'geocode-results';
+        list.id = 'geocode-dropdown';
+        var li = document.createElement('li');
+        li.className = 'geocode-result-item result-disabled';
+        li.textContent = msg;
+        list.appendChild(li);
+        searchWrap.appendChild(list);
+    }
 
-        previewMarker = L.marker([lat, lng], { icon: icon }).addTo(previewMap);
+    function clearDropdown() {
+        var el = document.getElementById('geocode-dropdown');
+        if (el) el.remove();
     }
 }
 
